@@ -1,9 +1,10 @@
 #!/bin/bash
 set -euo pipefail
+cd "$(dirname "$0")"
 
 # Définition des variables
 APP_NAME="TestAutumn"
-SRC_DIR="src/main/java/*"
+SRC_DIR="src/main/java"
 WEB_DIR="src/main/webapp"
 RESC_DIR="src/main/resources"
 BUILD_DIR="build"
@@ -18,13 +19,19 @@ mkdir -p $BUILD_DIR/WEB-INF/classes
 
 # Compilation des fichiers Java avec le JAR des Servlets
 find $SRC_DIR -name "*.java" > sources.txt
-javac -parameters -cp $SERVLET_API_JAR:$AUTUMN -d $BUILD_DIR/WEB-INF/classes @sources.txt
-#rm sources.txt
+javac -parameters -cp "$LIB_DIR/*" -d "$BUILD_DIR/WEB-INF/classes" @sources.txt
 
-cp -r $LIB_DIR/*.jar $WEB_DIR/WEB-INF/lib/
+
 
 # Copier les fichiers web (web.xml, JSP, etc.)
-cp -r $WEB_DIR/* $BUILD_DIR/
+cp -r "$WEB_DIR/." "$BUILD_DIR/"
+# Replace stale webapp libraries with the current runtime dependencies.
+rm -rf "$BUILD_DIR/WEB-INF/lib"
+mkdir -p "$BUILD_DIR/WEB-INF/lib"
+for library in "$LIB_DIR"/*.jar; do
+    [[ "$(basename "$library")" == "servlet-api.jar" ]] && continue
+    cp "$library" "$BUILD_DIR/WEB-INF/lib/"
+done
 
 cp -r $RESC_DIR/* $BUILD_DIR/WEB-INF/classes/
 
@@ -32,6 +39,12 @@ cp -r $RESC_DIR/* $BUILD_DIR/WEB-INF/classes/
 cd $BUILD_DIR || exit
 jar -cvf $APP_NAME.war *
 cd ..
+
+# Build without deploying when requested.
+if [[ "${1:-}" == "--build-only" ]]; then
+    echo "Built $BUILD_DIR/$APP_NAME.war"
+    exit 0
+fi
 
 # Déploiement dans Tomcat
 cp -f $BUILD_DIR/$APP_NAME.war $TOMCAT_WEBAPPS/
