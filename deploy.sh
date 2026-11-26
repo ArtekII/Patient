@@ -1,0 +1,43 @@
+#!/bin/bash
+set -euo pipefail
+
+# Définition des variables
+APP_NAME="TestAutumn"
+SRC_DIR="src/main/java/*"
+WEB_DIR="src/main/webapp"
+RESC_DIR="src/main/resources"
+BUILD_DIR="build"
+LIB_DIR="lib"
+TOMCAT_WEBAPPS="/home/itu/tomcat/tomcat/webapps"
+SERVLET_API_JAR="$LIB_DIR/servlet-api.jar"
+AUTUMN="$LIB_DIR/autumn.jar"
+
+# Nettoyage et création du répertoire temporaire
+rm -rf $BUILD_DIR
+mkdir -p $BUILD_DIR/WEB-INF/classes
+
+# Compilation des fichiers Java avec le JAR des Servlets
+find $SRC_DIR -name "*.java" > sources.txt
+javac -parameters -cp $SERVLET_API_JAR:$AUTUMN -d $BUILD_DIR/WEB-INF/classes @sources.txt
+#rm sources.txt
+
+cp -r $LIB_DIR/*.jar $WEB_DIR/WEB-INF/lib/
+
+# Copier les fichiers web (web.xml, JSP, etc.)
+cp -r $WEB_DIR/* $BUILD_DIR/
+
+cp -r $RESC_DIR/* $BUILD_DIR/WEB-INF/classes/
+
+# Générer le fichier .war dans le dossier build
+cd $BUILD_DIR || exit
+jar -cvf $APP_NAME.war *
+cd ..
+
+# Déploiement dans Tomcat
+cp -f $BUILD_DIR/$APP_NAME.war $TOMCAT_WEBAPPS/
+
+echo ""
+
+echo "Déploiement terminé. Redémarrez Tomcat si nécessaire."
+
+echo ""
